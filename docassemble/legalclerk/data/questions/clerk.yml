@@ -1,0 +1,233 @@
+metadata:
+  title: Legal Clerk
+  short title: Legal Clerk
+  comment: The Legal Clerk triages clients to the right Clerk
+    based off of data from Clerical Hub (http://hub.clerical.ai)
+---
+modules:
+  - docassemble.base.util
+  - docassemble.base.legal
+  - airtable
+---
+objects:
+  - client: Individual
+  - client.issue: Event
+  - case: Case
+  - clerks: DAObject
+  - clerks.matches: DAList
+---
+mandatory: True
+code: |
+  if acknowledged_information_use == False:
+    end_no_acknowledge
+  if clerk_select != True and provider_search == "None":
+    end_no_result_page
+---
+question: |
+  Welcome to the Legal Clerk!
+subquestion: |
+  The Legal Clerk will ask you a few questions and then direct
+  you to the appropriate Clerk listed on [Clerical Hub],
+  if one is avaliable.
+
+  If you have created a Clerk, then please [share your Clerk].
+  All are also welcome to contribute to the Legal Clerk,
+  which is open source and avaliable [on GitHub].
+
+  Click on a {green word} to learn what it means. Click the "Help"
+  button to learn more about the Legal Clerk or a specific question,
+  and "BACK" if you want to go back to the previous question.
+  Before continuing you must read and agree to the [terms of use] and [privacy policy].
+
+  [Clerical Hub]: http://hub.clerical.ai
+  [share your Clerk]: https://airtable.com/shrF4TAGYDiVV3QQE
+  [on GitHub]: https://github.com/clericalai/docassemble-legalclerk
+  [terms of use]: http://clerical.ai/legal-clerk-terms-of-use/
+  [privacy policy]: http://clerical.ai/legal-clerk-privacy-policy/
+help: |
+  This is an example help page.
+  Click "[Back to question]" to go to the previous screen and continue using the Legal Clerk.
+terms: 
+  - green word: This is an example. Click it again to hide this definition.
+fields:
+  - Language: user_language
+    default: en
+    choices:
+      - English: en
+  - I agree: acknowledged_information_use
+    datatype: yesno
+    default: True
+continue button field: start_page
+comment: |
+  This is the "splash screen" for the Legal Clerk.
+---
+question: |
+  Issue Category
+subquestion: |
+  Please select from one of the following categories.
+  You can always come back to the Legal Clerk for help
+  with additional issues.
+field: client.issue.category
+combobox:
+  - "Accidents, Injuries, and Problems with Others"
+  - Crime and Prisons
+  - Family
+  - Health
+  - Housing
+  - Work
+  - Traffic
+  - Benefits
+  - Estates and Wills
+  - Immigration
+  - "Money, Debt, and Consumer Issues"
+  - Civil and Human Rights
+  - Court and Lawyers
+  - Disaster Relief
+  - Education
+  - Environmental Justice
+  - Government Services
+  - Native American Issues
+  - Small Business
+  - Veterans and Military
+comment: |
+  This allows the user to choose the category for their issue.
+  These categories are from the draft National Subject Matter Index (NSMI) v2.0.
+  As more categories and sub-categories are added, more triage can take place.
+---
+question: |
+  Issue Location
+subquestion: |
+ Please select the state where the issue occured.
+ Also, indicate whether this is different from
+ where you live now.
+fields:
+  - Issue is in: client.issue.address.state
+    input type: combobox
+    code: |
+      states_list()
+  - This is also where I live now: issue_residence_same
+    datatype: yesno
+    default: True
+  - I live in: client.address.state
+    input type: combobox
+    code: |
+      states_list()
+    show if:
+      variable: issue_residence_same
+      is: False
+comment: |
+  This allows a user to select their state.
+  Eventually, the goal is to have this be international and not just for the US.
+  Additionally, more narrow geolation will be desired such as the particular county.
+  The user's state of residence, if different than the issue is currently unused.
+---
+code: |
+  if client.issue.category != None and client.issue.address.state != None:
+    airtable = Airtable('appTjL6HbRtZSScDo', 'clerks', api_key=get_config('airtable'))
+    clerks.search = airtable.search('Category', str(client.issue.category),
+      fields=['Name', 'Developer', 'State', 'Country', 'Description', 'Live Site'])
+    for record in clerks.search:
+      if 'Name' in record['fields'] and 'State' in record['fields'] and 'Country' in record['fields'] \
+        and 'Description' in record['fields'] and 'Live Site' in record['fields']:
+        record_state = airtable.get(record['fields']['State'].pop())
+        if 'State Name' in record_state['fields']:
+          record_state = record_state['fields']['State Name']
+          if record_state == 'ALL' or record_state == state_name(client.issue.address.state):
+            match_developer = airtable.get(record['fields']['Developer'].pop())
+            match_country = airtable.get(record['fields']['Country'].pop())
+            if 'Developer' in match_developer['fields'] and 'Country Name' in match_country['fields']:
+              match_record = DAObject()
+              match_record.name = record['fields']['Name']
+              match_record.developer = match_developer['fields']['Developer']
+              match_record.state = record_state
+              match_record.country = match_country['fields']['Country Name']
+              match_record.description = record['fields']['Description']
+              match_record.url = "[![" + record['fields']['Name'] + "](http://clerk.legal/playgroundstatic/1/external-link-alt-solid.png)](" + record['fields']['Live Site'] + ")"
+              clerks.matches.append(match_record)
+              clerks.matches.there_are_any = True
+    clerks.matches.there_is_another = False
+  if len(clerks.matches) == 0:
+    clerks.matches.there_are_any = False
+comment: |
+  In this code block, the Clerk table from Clerical Hub is retrieved
+  for all Clerks that fit the user's issue.
+  The results are then narrowed down by the state.
+  There is a bit of checking to make sure that the API behaved as expected.
+  The matching records are then added the clerks.matches DAList
+---
+table: clerks_matches_table
+rows: clerks.matches
+columns:
+  - header: |
+      Clerks
+    cell: |
+      row_item.name
+  - header: |
+      Developer
+    cell: |
+      row_item.developer
+  - header: |
+      Description
+    cell: |
+      row_item.description
+  - header: |
+      Link
+    cell: |
+      row_item.url
+comment: |
+  This creates the table to display the matches found.
+---
+question: |
+  % if len(clerks.matches) == 1:
+    ${ client.issue.category } Clerk found in ${ state_name(client.issue.address.state) }
+  % else:
+    ${ client.issue.category } Clerks found in ${ state_name(client.issue.address.state) }
+  % endif
+subquestion: |
+  ${ clerks_matches_table }
+field: clerk_select
+buttons:
+  - Keep searching
+comment: |
+  If Clerk(s) are found, the user is shown the results
+  with links to the live instances of the Clerk(s).
+---
+code: |
+  if len(clerks.matches) == 0:
+    clerk_select = "None"
+comment: |
+  This is needed in order to bypass the Clerk results screen if there are no results.
+---
+code: |
+  provider_search = "None"
+comment: |
+  Stub out the code section where the AirTable API calls will be for legal aid orgs.
+---
+event: end_no_acknowledge
+question: |
+  We're sorry we could not serve you online
+subquestion: |
+  Only users who accept the [terms of use and data use policy](http://clerical.ai/2018/11/28/terms-of-use-and-privacy-policy-for-guided-interviews/) may use this application.
+buttons:
+  - Restart: restart
+  - Exit: exit
+comment: |
+  This is shown if the user does not accept the TOS.
+---
+event: end_no_result_page
+question: |
+  Aw, shucks...
+subquestion: |
+  We were unable to find either a suitable Clerk.
+
+  If you think you need financial assitance
+  for legal services then please
+  search with the [Legal Services Corptoration]
+  for a legal aid provider.
+
+  [Legal Services Corptoration]: https://www.lsc.gov/what-legal-aid/find-legal-aid
+buttons:
+  - Restart: restart
+  - Exit: exit
+comment: |
+  This is shown if the triage to a Clerk was unsuccessful.
