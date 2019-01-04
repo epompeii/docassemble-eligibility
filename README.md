@@ -1,8 +1,3 @@
-# docassemble.legalclerk
+# The Legal Clerk 
 
-The Legal Clerk
-
-## Author
-
-System Administrator, clerk@clerical.ai
-
+The first open source meta-triage system, powered by [Clerical Hub](http://hub.clerical.ai).
