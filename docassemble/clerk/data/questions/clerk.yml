@@ -23,8 +23,11 @@ mandatory: True
 code: |
   if acknowledged_information_use == False:
     end_no_acknowledge
-  if clerk_select != True and provider_select != True:
-    end_no_result_page
+  if app_select != True:
+    if provider_select:
+      provider_result_page
+    else:
+      end_no_result_page
 ---
 question: |
   Welcome to the Instant Attorney!
@@ -185,7 +188,7 @@ question: |
   % endif
 subquestion: |
   ${ apps_matches_table }
-field: clerk_select
+field: app_select
 buttons:
   - Keep searching
 comment: |
@@ -194,7 +197,7 @@ comment: |
 ---
 code: |
   if len(apps.matches) == 0:
-    clerk_select = "None"
+    app_select = "None"
 comment: |
   This is needed in order to bypass the Instant Attorney results screen if there are no results.
 ---
@@ -252,7 +255,7 @@ question: |
   ${ client.issue.category } help found in ${ state_name(client.issue.address.state) }
 subquestion: |
   ${ provider_matches_table }
-field: provider_select
+field: provider_qualify
 buttons:
   code: |
     [{match.sentence: match.name + ' ' + match.state} for match in provider.matches]
@@ -262,7 +265,8 @@ comment: |
 ---
 code: |
   if len(provider.matches) == 0:
-    provider_select = "None"
+    provider_qualify = None
+    qualification_sentence = None
   else:
     import sys
     import io
@@ -275,7 +279,7 @@ code: |
     sys.stdout = codeOut
     sys.stderr = codeErr
 
-    exec (provider_select)
+    exec (provider_qualify)
 
     # restore stdout and stderr
     sys.stdout = sys.__stdout__
@@ -296,12 +300,11 @@ comment: |
 question: |
   Code in a String
 subquestion: |
-  Please indicate the code in a string: ${ qualification_sentence }
+  Please indicate the code in a string:
+
+  ${ qualification_sentence }
   
-  Provider Select:
-  
-  ${ provider_select }
-yesno: qualification_status
+yesno: provider_select
 comment: |
   Test code in a string.
 ---
@@ -324,13 +327,24 @@ buttons:
 comment: |
   This is shown if the user does not accept the TOS.
 ---
+event: provider_result_page
+question: |
+  Your result for ${ client.issue.category } help in ${ state_name(client.issue.address.state) }
+subquestion: |
+  Result:
+
+  ${ qualification_sentence }
+buttons:
+  - Restart: restart
+  - Exit: exit
+comment: |
+  This is shown if the triage to a Instant Attorney yields a provider result.
+---
 event: end_no_result_page
 question: |
   Aw, shucks...
 subquestion: |
   We were unable to find either a suitable Instant Attorney.
-  
-  and you had a ${ qualification_status }
 
   If you think you need financial assitance
   for legal services then please
