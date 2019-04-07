@@ -1,8 +1,8 @@
 metadata:
   title: Instant Attorney
   short title: Instant Attorney
-  comment: Instant Attorney uses meta-search to find the right
-    legal resources and then uses meta-triage to qualify users
+  comment: Instant Attorney is the first legal meta-search tool.
+    It finds legal resources and then uses meta-triage to qualify users
     for those resources.
 ---
 modules:
@@ -14,10 +14,10 @@ objects:
   - client: Individual
   - client.issue: Event
   - case: Case
-  - clerks: DAObject
-  - clerks.matches: DAList
-  - aid: DAObject
-  - aid.matches: DAList
+  - apps: DAObject
+  - apps.matches: DAList
+  - provider: DAObject
+  - provider.matches: DAList
 ---
 mandatory: True
 code: |
@@ -37,9 +37,6 @@ subquestion: |
   All are also welcome to contribute to the Instant Attorney's meta-triage,
   which is open source and avaliable [on GitHub].
 
-  Click on a {green word} to learn what it means. Click the "Help"
-  button to learn more about the Instant Attorney or a specific question,
-  and "BACK" if you want to go back to the previous question.
   Before continuing you must read and agree to the [terms of use] and [privacy policy].
 
   [Clerical Hub]: http://hub.clerical.ai
@@ -49,7 +46,7 @@ subquestion: |
   [privacy policy]: http://clerical.ai/legal-clerk-privacy-policy/
 help: |
   This is an example help page.
-  Click "[Back to question]" to go to the previous screen and continue using the Legal Clerk.
+  Click "[Back to question]" to go to the previous screen and continue using the Legal Instant Attorney.
 terms: 
   - green word: This is an example. Click it again to hide this definition.
 fields:
@@ -62,13 +59,13 @@ fields:
     default: True
 continue button field: start_page
 comment: |
-  This is the "splash screen" for the Legal Clerk.
+  This is the "splash screen" for the Legal Instant Attorney.
 ---
 question: |
   Issue Category
 subquestion: |
   Please select from one of the following categories.
-  You can always come back to the Legal Clerk for help
+  You can always come back to the Legal Instant Attorney for help
   with additional issues.
 field: client.issue.category
 combobox:
@@ -126,10 +123,10 @@ comment: |
 ---
 code: |
   if client.issue.category != None and client.issue.address.state != None:
-    airtable = Airtable('appTjL6HbRtZSScDo', 'clerks', api_key=get_config('airtable'))
-    clerks.search = airtable.search('Category', str(client.issue.category),
+    airtable = Airtable('appTjL6HbRtZSScDo', 'apps', api_key=get_config('airtable'))
+    apps.search = airtable.search('Category', str(client.issue.category),
       fields=['Name', 'Developer', 'State', 'Country', 'Description', 'Live Site'])
-    for record in clerks.search:
+    for record in apps.search:
       if 'Name' in record['fields'] and 'State' in record['fields'] and 'Country' in record['fields'] \
         and 'Description' in record['fields'] and 'Live Site' in record['fields']:
         record_state = airtable.get(record['fields']['State'].pop())
@@ -146,23 +143,23 @@ code: |
               match_record.country = match_country['fields']['Country Name']
               match_record.description = record['fields']['Description']
               match_record.url = "[![" + record['fields']['Name'] + "](http://hackathon.myinstantattorney.com/playgroundstatic/3/external-link-alt-solid.png)](" + record['fields']['Live Site'] + ")"
-              clerks.matches.append(match_record)
-              clerks.matches.there_are_any = True
-    clerks.matches.there_is_another = False
-  if len(clerks.matches) == 0:
-    clerks.matches.there_are_any = False
+              apps.matches.append(match_record)
+              apps.matches.there_are_any = True
+    apps.matches.there_is_another = False
+  if len(apps.matches) == 0:
+    apps.matches.there_are_any = False
 comment: |
-  In this code block, the Clerk table from Clerical Hub is retrieved
-  for all Clerks that fit the user's issue.
+  In this code block, the Instant Attorney table from Clerical Hub is retrieved
+  for all Instant Attorneys that fit the user's issue.
   The results are then narrowed down by the state.
   There is a bit of checking to make sure that the API behaved as expected.
-  The matching records are then added the clerks.matches DAList
+  The matching records are then added the apps.matches DAList
 ---
-table: clerks_matches_table
-rows: clerks.matches
+table: apps_matches_table
+rows: apps.matches
 columns:
   - header: |
-      Clerks
+      Instant Attorneys
     cell: |
       row_item.name
   - header: |
@@ -181,56 +178,56 @@ comment: |
   This creates the table to display the app matches found.
 ---
 question: |
-  % if len(clerks.matches) == 1:
-    ${ client.issue.category } Clerk found in ${ state_name(client.issue.address.state) }
+  % if len(apps.matches) == 1:
+    ${ client.issue.category } Instant Attorney found in ${ state_name(client.issue.address.state) }
   % else:
-    ${ client.issue.category } Clerks found in ${ state_name(client.issue.address.state) }
+    ${ client.issue.category } Instant Attorneys found in ${ state_name(client.issue.address.state) }
   % endif
 subquestion: |
-  ${ clerks_matches_table }
+  ${ apps_matches_table }
 field: clerk_select
 buttons:
   - Keep searching
 comment: |
-  If Clerk(s) are found, the user is shown the results
-  with links to the live instances of the Clerk(s).
+  If Instant Attorney(s) are found, the user is shown the results
+  with links to the live instances of the Instant Attorney(s).
 ---
 code: |
-  if len(clerks.matches) == 0:
+  if len(apps.matches) == 0:
     clerk_select = "None"
 comment: |
-  This is needed in order to bypass the Clerk results screen if there are no results.
+  This is needed in order to bypass the Instant Attorney results screen if there are no results.
 ---
 code: |
   if client.issue.category != None and client.issue.address.state != None:
     airtable = Airtable('appTjL6HbRtZSScDo', 'qualification', api_key=get_config('airtable'))
-    aid.search = airtable.search('Category', str(client.issue.category),
+    provider.search = airtable.search('Category', str(client.issue.category),
       fields=['Name', 'Category', 'State', 'Sentence', 'URL'])
-    for record in aid.search:
+    for record in provider.search:
       if 'Name' in record['fields'] and 'State' in record['fields'] \
         and 'Sentence' in record['fields']:
         record_state = airtable.get(record['fields']['State'].pop())
         if 'State Name' in record_state['fields']:
           record_state = record_state['fields']['State Name']
           if record_state == 'ALL' or record_state == state_name(client.issue.address.state):
-            aid_category = airtable.get(record['fields']['Category'].pop())
+            provider_category = airtable.get(record['fields']['Category'].pop())
             match_record = DAObject()
             match_record.name = record['fields']['Name']
-            match_record.category = aid_category['fields']['Category']
+            match_record.category = provider_category['fields']['Category']
             match_record.state = record_state
             match_record.qualify = False
             match_record.sentence = record['fields']['Sentence']
             match_record.url = "[![" + record['fields']['Name'] + "](http://hackathon.myinstantattorney.com/playgroundstatic/3/external-link-alt-solid.png)](" + record['fields']['URL'] + ")"
-            aid.matches.append(match_record)
-            aid.matches.there_are_any = True
-    aid.matches.there_is_another = False
-  if len(aid.matches) == 0:
-    aid.matches.there_are_any = False
+            provider.matches.append(match_record)
+            provider.matches.there_are_any = True
+    provider.matches.there_is_another = False
+  if len(provider.matches) == 0:
+    provider.matches.there_are_any = False
 comment: |
   In this code block, the qualification table is queries
 ---
-table: aid_matches_table
-rows: aid.matches
+table: provider_matches_table
+rows: provider.matches
 columns:
   - header: |
       Organization
@@ -254,17 +251,17 @@ comment: |
 question: |
   ${ client.issue.category } help found in ${ state_name(client.issue.address.state) }
 subquestion: |
-  ${ aid_matches_table }
+  ${ provider_matches_table }
 field: provider_select
 buttons:
   code: |
-    [{match.sentence: match.name + ' ' + match.state} for match in aid.matches]
+    [{match.sentence: match.name + ' ' + match.state} for match in provider.matches]
 comment: |
-  If aid is found, the user is shown the results
+  If provider is found, the user is shown the results
   with links to the pages.
 ---
 code: |
-  if len(aid.matches) == 0:
+  if len(provider.matches) == 0:
     provider_select = "None"
   else:
     import sys
@@ -297,9 +294,21 @@ comment: |
   Qualification statement or bypass
 ---
 question: |
+  Code in a String
+subquestion: |
+  Please indicate the code in a string: ${ qualification_sentence }
+  
+  Provider Select:
+  
+  ${ provider_select }
+yesno: qualification_status
+comment: |
+  Test code in a string.
+---
+question: |
   What is you mystery number?
 fields:
-  - Number of cars: mystery_number
+  - Mystery Number: mystery_number
     datatype: integer
 comment: |
   Set the mystery number from code
@@ -319,16 +328,18 @@ event: end_no_result_page
 question: |
   Aw, shucks...
 subquestion: |
-  We were unable to find either a suitable Clerk.
+  We were unable to find either a suitable Instant Attorney.
+  
+  and you had a ${ qualification_status }
 
   If you think you need financial assitance
   for legal services then please
   search with the [Legal Services Corptoration]
-  for a legal aid provider.
+  for a legal provider provider.
 
-  [Legal Services Corptoration]: https://www.lsc.gov/what-legal-aid/find-legal-aid
+  [Legal Services Corptoration]: https://www.lsc.gov/what-legal-provider/find-legal-provider
 buttons:
   - Restart: restart
   - Exit: exit
 comment: |
-  This is shown if the triage to a Clerk was unsuccessful.
+  This is shown if the triage to a Instant Attorney was unsuccessful.
