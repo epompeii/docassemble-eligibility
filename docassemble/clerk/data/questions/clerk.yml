@@ -1,8 +1,9 @@
 metadata:
-  title: Legal Clerk
-  short title: Legal Clerk
-  comment: The Legal Clerk triages clients to the right Clerk
-    based off of data from Clerical Hub (http://hub.clerical.ai)
+  title: Instant Attorney
+  short title: Instant Attorney
+  comment: Instant Attorney uses meta-search to find the right
+    legal resources and then uses meta-triage to qualify users
+    for those resources.
 ---
 modules:
   - docassemble.base.util
@@ -14,6 +15,7 @@ objects:
   - client.issue: Event
   - case: Case
   - clerks: DAObject
+  - aid: DAObject
   - clerks.matches: DAList
 ---
 mandatory: True
@@ -24,23 +26,23 @@ code: |
     end_no_result_page
 ---
 question: |
-  Welcome to the Legal Clerk!
+  Welcome to the Instant Attorney!
 subquestion: |
-  The Legal Clerk will ask you a few questions and then direct
-  you to the appropriate Clerk listed on [Clerical Hub],
+  Instant Attorney will ask you a few questions and then direct
+  you to the appropriate legal resource listed on [Clerical Hub],
   if one is avaliable.
 
-  If you have created a Clerk, then please [share your Clerk].
-  All are also welcome to contribute to the Legal Clerk,
+  If you have created a legal resource, then please [share it].
+  All are also welcome to contribute to the Instant Attorney's meta-triage,
   which is open source and avaliable [on GitHub].
 
   Click on a {green word} to learn what it means. Click the "Help"
-  button to learn more about the Legal Clerk or a specific question,
+  button to learn more about the Instant Attorney or a specific question,
   and "BACK" if you want to go back to the previous question.
   Before continuing you must read and agree to the [terms of use] and [privacy policy].
 
   [Clerical Hub]: http://hub.clerical.ai
-  [share your Clerk]: https://airtable.com/shrF4TAGYDiVV3QQE
+  [share it]: https://airtable.com/shrF4TAGYDiVV3QQE
   [on GitHub]: https://github.com/clericalai/docassemble-clerk
   [terms of use]: http://clerical.ai/legal-clerk-terms-of-use/
   [privacy policy]: http://clerical.ai/legal-clerk-privacy-policy/
@@ -142,7 +144,7 @@ code: |
               match_record.state = record_state
               match_record.country = match_country['fields']['Country Name']
               match_record.description = record['fields']['Description']
-              match_record.url = "[![" + record['fields']['Name'] + "](http://clerk.legal/playgroundstatic/1/external-link-alt-solid.png)](" + record['fields']['Live Site'] + ")"
+              match_record.url = "[![" + record['fields']['Name'] + "](http://hackathon.myinstantattorney.com/playgroundstatic/3/external-link-alt-solid.png)](" + record['fields']['Live Site'] + ")"
               clerks.matches.append(match_record)
               clerks.matches.there_are_any = True
     clerks.matches.there_is_another = False
@@ -175,7 +177,7 @@ columns:
     cell: |
       row_item.url
 comment: |
-  This creates the table to display the matches found.
+  This creates the table to display the app matches found.
 ---
 question: |
   % if len(clerks.matches) == 1:
@@ -199,7 +201,105 @@ comment: |
   This is needed in order to bypass the Clerk results screen if there are no results.
 ---
 code: |
-  provider_search = "None"
+  if client.issue.category != None and client.issue.address.state != None:
+    airtable = Airtable('appTjL6HbRtZSScDo', 'qualification', api_key=get_config('airtable'))
+    aid.search = airtable.search('Category', str(client.issue.category),
+      fields=['Name', 'State', 'Sentence', 'URL'])
+    for record in aid.search:
+      if 'Name' in record['fields'] and 'State' in record['fields'] \
+        and 'Sentence' in record['fields']:
+        record_state = airtable.get(record['fields']['State'].pop())
+        if 'State Name' in record_state['fields']:
+          record_state = record_state['fields']['State Name']
+          if record_state == 'ALL' or record_state == state_name(client.issue.address.state):
+              match_record = DAObject()
+              match_record.name = match_developer['fields']['Name']
+              match_record.category = client.issue.category
+              match_record.state = record_state
+              match_record.sentence = match_developer['fields']['Sentence']
+              match_record.url = "[![" + record['fields']['Name'] + "](http://hackathon.myinstantattorney.com/playgroundstatic/3/external-link-alt-solid.png)](" + record['fields']['URL'] + ")"
+              aid.matches.append(match_record)
+              aid.matches.there_are_any = True
+    aid.matches.there_is_another = False
+  if len(aid.matches) == 0:
+    aid.matches.there_are_any = False
+comment: |
+  In this code block, the qualification table is queries
+---
+---
+table: aid_matches_table
+rows: aid.matches
+columns:
+  - header: |
+      Organization
+    cell: |
+      row_item.name
+  - header: |
+      Category
+    cell: |
+      row_item.category
+  - header: |
+      State
+    cell: |
+      row_item.state
+  - header: |
+      Link
+    cell: |
+      row_item.url
+comment: |
+  This creates the table to display the matches found.
+---
+code: |
+  import sys
+  import io
+
+  # create file-like string to capture output
+  codeOut = io.StringIO()
+  codeErr = io.StringIO()
+
+  code = """
+  def f(x):
+    x = x + 1
+    return x
+
+  print ('This is my output.')
+  """
+
+  # capture output and errors
+  sys.stdout = codeOut
+  sys.stderr = codeErr
+
+  exec (code)
+
+  # restore stdout and stderr
+  sys.stdout = sys.__stdout__
+  sys.stderr = sys.__stderr__
+
+  qualification_sentence = f(4)
+
+  s = codeErr.getvalue()
+
+  print ("error:\n%s\n" % s)
+
+  s = codeOut.getvalue()
+
+  print ("output:\n%s" % s)
+comment: |
+  Qualification statement
+---
+question: |
+  Code in a String
+subquestion: |
+  Please indicate the code in a string: ${ qualification_sentence }
+yesno: qualification_status
+comment: |
+  Test code in a string.
+---
+code: |
+  if qualification_status:
+    provider_search = "None"
+  else:
+    provider_search = "None"
 comment: |
   Stub out the code section where the AirTable API calls will be for legal aid orgs.
 ---
