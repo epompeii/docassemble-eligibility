@@ -19,6 +19,9 @@ objects:
   - provider: DAObject
   - provider.matches: DAList
 ---
+features:
+  css: clerk.css
+---
 mandatory: True
 code: |
   if acknowledged_information_use == False:
@@ -255,7 +258,7 @@ question: |
   ${ client.issue.category } help found in ${ state_name(client.issue.address.state) }
 subquestion: |
   ${ provider_matches_table }
-field: provider_qualify
+field: provider_sentence
 buttons:
   code: |
     [{match.sentence: match.name + ' ' + match.state} for match in provider.matches]
@@ -275,13 +278,15 @@ code: |
   sys.stdout = codeOut
   sys.stderr = codeErr
 
-  exec (provider_qualify)
+  exec (provider_sentence)
 
   # restore stdout and stderr
   sys.stdout = sys.__stdout__
   sys.stderr = sys.__stderr__
 
-  qualification_sentence = qualify(4)
+  provider_qualify = qualify()
+
+  provider_select = True
 
   s = codeErr.getvalue()
 
@@ -293,29 +298,10 @@ code: |
 comment: |
   Qualification statement or bypass
 ---
-question: |
-  Code in a String
-subquestion: |
-  Please indicate the code in a string:
-
-  ${ qualification_sentence }
-  
-yesno: provider_select
-comment: |
-  Test code in a string.
----
-question: |
-  What is you mystery number?
-fields:
-  - Mystery Number: mystery_number
-    datatype: integer
-comment: |
-  Set the mystery number from code
----
 code: |
   if len(provider.matches) == 0:
     provider_select = False
-    qualification_sentence = None
+    provider_qualify = None
 ---
 event: end_no_acknowledge
 question: |
@@ -330,11 +316,10 @@ comment: |
 ---
 event: provider_result_page
 question: |
-  Your result for ${ client.issue.category } help in ${ state_name(client.issue.address.state) }
-subquestion: |
-  Result:
-
-  ${ qualification_sentence }
+  The chances that you may qualify for
+  ${ client.issue.category } help in
+  ${ state_name(client.issue.address.state) }
+  is ${ provider_qualify.lower() }
 buttons:
   - Restart: restart
   - Exit: exit
@@ -358,3 +343,30 @@ buttons:
   - Exit: exit
 comment: |
   This is shown if the triage to a Instant Attorney was unsuccessful.
+---
+question: |
+  What is you mystery number?
+fields:
+  - Mystery Number: mystery_number
+    datatype: integer
+comment: |
+  Set the mystery number from code
+---
+question: |
+  Have you been arrested or charged with a crime?
+fields:
+  - I AM arrested or charged: is_arrested_or_charged
+    datatype: yesnoradio
+  - I MIGHT be arrested or charged in the future: might_be_arrested_or_charged
+    datatype: yesnoradio
+    show if:
+      variable: is_arrested_or_charged
+      is: False
+---
+question: |
+  What is your household size and annual household income?
+fields:
+  - Household size: household_size
+    datatype: integer
+  - Annual household income: household_income
+    datatype: currency
