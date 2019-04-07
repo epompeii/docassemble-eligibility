@@ -319,12 +319,16 @@ question: |
   The chances that you may qualify for
   ${ client.issue.category } help in
   ${ state_name(client.issue.address.state) }
-  is ${ provider_qualify.lower() }
+  is { ${ provider_qualify.lower() } }
 buttons:
   - Restart: restart
   - Exit: exit
 comment: |
   This is shown if the triage to a Instant Attorney yields a provider result.
+terms: 
+  - good: Based on the eligibility criteria, your chances to have a public defender appointed for you are favorable with the information you provided.
+  - undetermined: Based on the eligibility criteria, your chances to have a public defender appointed for you will depend upon additional information.
+  - bad: Based on the eligibility criteria, your chances to have a public defender appointed for you are not favorable with the information you provided.
 ---
 event: end_no_result_page
 question: |
