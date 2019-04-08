@@ -248,7 +248,7 @@ columns:
     cell: |
       row_item.state
   - header: |
-      Source
+      More Details
     cell: |
       row_item.url
 comment: |
@@ -261,7 +261,7 @@ subquestion: |
 field: provider_sentence
 buttons:
   code: |
-    [{match.sentence: match.name + ' ' + match.state} for match in provider.matches]
+    [{match.sentence: 'Qualify for a ' + match.name + ' in ' + match.state} for match in provider.matches]
 comment: |
   If provider is found, the user is shown the results
   with links to the pages.
@@ -319,7 +319,7 @@ question: |
   The chances that you may qualify for
   ${ client.issue.category } help in
   ${ state_name(client.issue.address.state) }
-  is { ${ provider_qualify.lower() } }
+  is {${ provider_qualify.lower() }}
 buttons:
   - Restart: restart
   - Exit: exit
