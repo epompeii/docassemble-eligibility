@@ -19,9 +19,6 @@ objects:
   - provider: DAObject
   - provider.matches: DAList
 ---
-features:
-  css: clerk.css
----
 mandatory: True
 code: |
   if acknowledged_information_use == False:
@@ -248,7 +245,7 @@ columns:
     cell: |
       row_item.state
   - header: |
-      More Details
+      More Detail
     cell: |
       row_item.url
 comment: |
