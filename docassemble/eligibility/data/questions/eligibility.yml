@@ -27,6 +27,114 @@ code: |
   else:
     end_no_result_page
 ---
+code: |
+  import sys
+  import io
+
+  # create file-like string to capture output
+  codeOut = io.StringIO()
+  codeErr = io.StringIO()
+
+  # capture output and errors
+  sys.stdout = codeOut
+  sys.stderr = codeErr
+
+  exec (provider_sentence)
+
+  # restore stdout and stderr
+  sys.stdout = sys.__stdout__
+  sys.stderr = sys.__stderr__
+
+  provider_qualify = qualify()
+
+  provider_select = True
+
+  s = codeErr.getvalue()
+
+  print ("error:\n%s\n" % s)
+
+  s = codeOut.getvalue()
+
+  print ("output:\n%s" % s)
+comment: |
+  Qualification statement or bypass
+---
+code: |
+  if client.issue.category != None and client.issue.address.state != None:
+    nsmi_table = Airtable(eligibility_base, 'nsmi', api_key=get_config('airtable'))
+    category_resources = nsmi_table.search('category_name', str(client.issue.category),
+      fields=['category_name', 'eligibility_resource'], max_records=1000).pop()
+    if 'eligibility_resource' in category_resources['fields']:
+      eligibility_table = Airtable(eligibility_base, 'eligibility', api_key=get_config('airtable'))
+      state_table = Airtable(eligibility_base, 'states', api_key=get_config('airtable'))
+      progress = category_resources['fields']['eligibility_resource']
+      for resource in category_resources['fields']['eligibility_resource']:
+        record = eligibility_table.get(resource)
+        if 'state' in record['fields']:
+          record_state = state_table.get(record['fields']['state'].pop())
+          if 'state_abbrev' in record_state['fields']:
+            if client.issue.address.state == record_state['fields']['state_abbrev'] \
+            and 'state_name' in record_state['fields'] \
+            and 'resource_name' in record['fields'] \
+            and 'qualify_sentence' in record['fields'] \
+            and 'url' in record['fields']:
+              match_record = DAObject()
+              match_record.name = record['fields']['resource_name']
+              match_record.category = client.issue.category
+              match_record.state = record_state['fields']['state_name']
+              match_record.qualify = False
+              match_record.sentence = record['fields']['qualify_sentence']
+              match_record.url = "[![" + record['fields']['resource_name'] + "](http://hackathon.myinstantattorney.com/playgroundstatic/3/external-link-alt-solid.png)](" + record['fields']['url'] + ")"
+              provider.matches.append(match_record)
+              provider.matches.there_are_any = True
+    provider.matches.there_is_another = False
+  if len(provider.matches) == 0:
+    provider.matches.there_are_any = False
+comment: |
+  In this code block, the eligibility table is queried
+---
+table: provider_matches_table
+rows: provider.matches
+columns:
+  - header: |
+      Organization
+    cell: |
+      row_item.name
+  - header: |
+      Category
+    cell: |
+      row_item.category
+  - header: |
+      State
+    cell: |
+      row_item.state
+  - header: |
+      More Detail
+    cell: |
+      row_item.url
+comment: |
+  This creates the table to display the matches found.
+---
+question: |
+  ${ client.issue.category } help found in ${ state_name(client.issue.address.state) }
+subquestion: |
+  ${ provider_matches_table }
+field: provider_sentence
+buttons:
+  code: |
+    [{match.sentence: 'Qualify for a ' + match.name + ' in ' + match.state} for match in provider.matches]
+comment: |
+  If provider is found, the user is shown the results
+  with links to the pages.
+---
+code: |
+  if len(provider.matches) == 0:
+    provider_select = False
+    provider_qualify = None
+---
+code: |
+  eligibility_base = 'appTjL6HbRtZSScDo'
+---
 question: |
   Welcome to the Instant Attorney!
 subquestion: |
@@ -118,116 +226,6 @@ comment: |
   Eventually, the goal is to have this be international and not just for the US.
   Additionally, more narrow geolation will be desired such as the particular county.
   The user's state of residence, if different than the issue is currently unused.
----
-code: |
-  if client.issue.category != None and client.issue.address.state != None:
-    nsmi_table = Airtable('appTjL6HbRtZSScDo', 'nsmi', api_key=get_config('airtable'))
-    category_resources = nsmi_table.search('category_name', str(client.issue.category),
-      fields=['category_name', 'eligibility_resource'], max_records=1000).pop()
-    if 'eligibility_resource' in category_resources['fields']:
-      eligibility_table = Airtable('appTjL6HbRtZSScDo', 'eligibility', api_key=get_config('airtable'))
-      state_table = Airtable('appTjL6HbRtZSScDo', 'states', api_key=get_config('airtable'))
-      progress = category_resources['fields']['eligibility_resource']
-      for resource in category_resources['fields']['eligibility_resource']:
-        record = eligibility_table.get(resource)
-        if 'state' in record['fields']:
-          record_state = state_table.get(record['fields']['state'].pop())
-          if 'state_abbrev' in record_state['fields']:
-            if client.issue.address.state == record_state['fields']['state_abbrev'] \
-            and 'state_name' in record_state['fields'] \
-            and 'resource_name' in record['fields'] \
-            and 'qualify_sentence' in record['fields'] \
-            and 'url' in record['fields']:
-              match_record = DAObject()
-              match_record.name = record['fields']['resource_name']
-              match_record.category = client.issue.category
-              match_record.state = record_state['fields']['state_name']
-              match_record.qualify = False
-              match_record.sentence = record['fields']['qualify_sentence']
-              match_record.url = "[![" + record['fields']['resource_name'] + "](http://hackathon.myinstantattorney.com/playgroundstatic/3/external-link-alt-solid.png)](" + record['fields']['url'] + ")"
-              provider.matches.append(match_record)
-              provider.matches.there_are_any = True
-    provider.matches.there_is_another = False
-  if len(provider.matches) == 0:
-    provider.matches.there_are_any = False
-comment: |
-  In this code block, the eligibility table is queried
----
-table: provider_matches_table
-rows: provider.matches
-columns:
-  - header: |
-      Organization
-    cell: |
-      row_item.name
-  - header: |
-      Category
-    cell: |
-      row_item.category
-  - header: |
-      State
-    cell: |
-      row_item.state
-  - header: |
-      More Detail
-    cell: |
-      row_item.url
-comment: |
-  This creates the table to display the matches found.
----
-question: |
-  ${ client.issue.category } help found in ${ state_name(client.issue.address.state) }
-subquestion: |
-  ${ provider_matches_table }
-field: provider_sentence
-buttons:
-  code: |
-    [{match.sentence: 'Qualify for a ' + match.name + ' in ' + match.state} for match in provider.matches]
-comment: |
-  If provider is found, the user is shown the results
-  with links to the pages.
----
-code: |
-  import sys
-  import io
-
-  # create file-like string to capture output
-  codeOut = io.StringIO()
-  codeErr = io.StringIO()
-
-  # capture output and errors
-  sys.stdout = codeOut
-  sys.stderr = codeErr
-
-  exec (provider_sentence)
-
-  # restore stdout and stderr
-  sys.stdout = sys.__stdout__
-  sys.stderr = sys.__stderr__
-
-  provider_qualify = qualify()
-
-  provider_select = True
-
-  s = codeErr.getvalue()
-
-  print ("error:\n%s\n" % s)
-
-  s = codeOut.getvalue()
-
-  print ("output:\n%s" % s)
-comment: |
-  Qualification statement or bypass
----
-code: |
-  if len(provider.matches) == 0:
-    track_progress
-    provider_select = False
-    provider_qualify = None
----
-question: |
-  ${ progress }
-yesno: track_progress
 ---
 event: end_no_acknowledge
 question: |
