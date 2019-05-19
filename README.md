@@ -1,3 +1,6 @@
-# The Legal Clerk 
+# The Eligibility Engine 
 
-The first open source meta-triage system, powered by [Clerical Hub](http://hub.clerical.ai).
+Instant Attorney will be the first legal resource meta-search engine.
+It will help users find the best legal resource for their need,
+including allowing them to programmatically qualify for a legal resource
+using the Eligibility Engine.

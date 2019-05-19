@@ -44,18 +44,18 @@ def find_package_data(where='.', package='', exclude=standard_exclude, exclude_d
                 out.setdefault(package, []).append(prefix+name)
     return out
 
-setup(name='docassemble.clerk',
+setup(name='docassemble.eligibility',
       version='0.0.1',
-      description=('The Legal Clerk'),
-      long_description=u'# docassemble.clerk\n\nThe Legal Clerk',
+      description=('The Eligibility Engine'),
+      long_description=u'# docassemble.eligibility\n\nThe Eligibility Engine',
       long_description_content_type='text/markdown',
-      author='Clerical',
-      author_email='clerk@clerical.ai',
+      author='Everett Pompeii',
+      author_email='epompeii@protonmail.com',
       license='GNU AGPLv3',
-      url='http://clerk.legal',
+      url='https://hackathon.myinstantattorney.com',
       packages=find_packages(),
       namespace_packages=['docassemble'],
       install_requires=['airtable-python-wrapper'],
       zip_safe=False,
-      package_data=find_package_data(where='docassemble/clerk/', package='docassemble.clerk'),
+      package_data=find_package_data(where='docassemble/eligibility/', package='docassemble.eligibility'),
      )
