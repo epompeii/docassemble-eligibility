@@ -1,9 +1,9 @@
 metadata:
   title: Instant Attorney
   short title: Instant Attorney
-  comment: Instant Attorney is the first legal meta-search tool.
-    It finds legal resources and then uses meta-triage to qualify users
-    for those resources.
+  comment: Instant Attorney will be the first legal resource meta-search engine.
+    This interview demonstrates the forthcoming ability to programmatically qualify
+    for legal resources listed on Instant Attorney.
 ---
 modules:
   - docassemble.base.util
@@ -14,8 +14,6 @@ objects:
   - client: Individual
   - client.issue: Event
   - case: Case
-  - apps: DAObject
-  - apps.matches: DAList
   - provider: DAObject
   - provider.matches: DAList
 ---
@@ -23,33 +21,29 @@ mandatory: True
 code: |
   if acknowledged_information_use == False:
     end_no_acknowledge
-  if app_select:
-    if provider_select:
-      provider_result_page
-    else:
-      end_no_result_page
+  if provider_select:
+    provider_result_page
+  else:
+    end_no_result_page
 ---
 question: |
   Welcome to the Instant Attorney!
 subquestion: |
-  Instant Attorney will ask you a few questions and then direct
-  you to the appropriate legal resource listed on [Clerical Hub],
-  if one is avaliable.
+  Instant Attorney will be the first legal resource meta-search engine.
+  It will help users find the best legal resource for their need,
+  including allowing them to programmatically qualify for a legal resource
+  using the Eligibility Engine.
 
-  If you have created a legal resource, then please [share it].
-  All are also welcome to contribute to the Instant Attorney's meta-triage,
-  which is open source and avaliable [on GitHub].
+  All of the data being used in this demo can be found [here].
 
   Before continuing you must read and agree to the [terms of use] and [privacy policy].
 
-  [Clerical Hub]: http://hub.clerical.ai
-  [share it]: https://airtable.com/shrF4TAGYDiVV3QQE
-  [on GitHub]: https://github.com/clericalai/docassemble-clerk
+  [here]: http://data.myinstantattorney.com
   [terms of use]: http://clerical.ai/legal-clerk-terms-of-use/
   [privacy policy]: http://clerical.ai/legal-clerk-privacy-policy/
 help: |
   This is an example help page.
-  Click "[Back to question]" to go to the previous screen and continue using the Legal Instant Attorney.
+  Click "[Back to question]" to go to the previous screen and continue using Instant Attorney.
 terms: 
   - green word: This is an example. Click it again to hide this definition.
 fields:
@@ -62,13 +56,13 @@ fields:
     default: True
 continue button field: start_page
 comment: |
-  This is the "splash screen" for the Legal Instant Attorney.
+  This is the "splash screen" for Instant Attorney.
 ---
 question: |
   Issue Category
 subquestion: |
   Please select from one of the following categories.
-  You can always come back to the Legal Instant Attorney for help
+  You can always come back to Instant Attorney for help
   with additional issues.
 field: client.issue.category
 combobox:
@@ -126,108 +120,37 @@ comment: |
 ---
 code: |
   if client.issue.category != None and client.issue.address.state != None:
-    airtable = Airtable('appTjL6HbRtZSScDo', 'apps', api_key=get_config('airtable'))
-    apps.search = airtable.search('Category', str(client.issue.category),
-      fields=['Name', 'Developer', 'State', 'Country', 'Description', 'Live Site'])
-    for record in apps.search:
-      if 'Name' in record['fields'] and 'State' in record['fields'] and 'Country' in record['fields'] \
-        and 'Description' in record['fields'] and 'Live Site' in record['fields']:
-        record_state = airtable.get(record['fields']['State'].pop())
-        if 'State Name' in record_state['fields']:
-          record_state = record_state['fields']['State Name']
-          if record_state == 'ALL' or record_state == state_name(client.issue.address.state):
-            match_developer = airtable.get(record['fields']['Developer'].pop())
-            match_country = airtable.get(record['fields']['Country'].pop())
-            if 'Developer' in match_developer['fields'] and 'Country Name' in match_country['fields']:
+    nsmi_table = Airtable('appTjL6HbRtZSScDo', 'nsmi', api_key=get_config('airtable'))
+    category_resources = nsmi_table.search('category_name', str(client.issue.category),
+      fields=['category_name', 'eligibility_resource'], max_records=1000).pop()
+    if 'eligibility_resource' in category_resources['fields']:
+      eligibility_table = Airtable('appTjL6HbRtZSScDo', 'eligibility', api_key=get_config('airtable'))
+      state_table = Airtable('appTjL6HbRtZSScDo', 'states', api_key=get_config('airtable'))
+      progress = category_resources['fields']['eligibility_resource']
+      for resource in category_resources['fields']['eligibility_resource']:
+        record = eligibility_table.get(resource)
+        if 'state' in record['fields']:
+          record_state = state_table.get(record['fields']['state'].pop())
+          if 'state_abbrev' in record_state['fields']:
+            if client.issue.address.state == record_state['fields']['state_abbrev'] \
+            and 'state_name' in record_state['fields'] \
+            and 'resource_name' in record['fields'] \
+            and 'qualify_sentence' in record['fields'] \
+            and 'url' in record['fields']:
               match_record = DAObject()
-              match_record.name = record['fields']['Name']
-              match_record.developer = match_developer['fields']['Developer']
-              match_record.state = record_state
-              match_record.country = match_country['fields']['Country Name']
-              match_record.description = record['fields']['Description']
-              match_record.url = "[![" + record['fields']['Name'] + "](http://hackathon.myinstantattorney.com/playgroundstatic/3/external-link-alt-solid.png)](" + record['fields']['Live Site'] + ")"
-              apps.matches.append(match_record)
-              apps.matches.there_are_any = True
-    apps.matches.there_is_another = False
-  if len(apps.matches) == 0:
-    apps.matches.there_are_any = False
-comment: |
-  In this code block, the Instant Attorney table from Clerical Hub is retrieved
-  for all Instant Attorneys that fit the user's issue.
-  The results are then narrowed down by the state.
-  There is a bit of checking to make sure that the API behaved as expected.
-  The matching records are then added the apps.matches DAList
----
-table: apps_matches_table
-rows: apps.matches
-columns:
-  - header: |
-      Instant Attorneys
-    cell: |
-      row_item.name
-  - header: |
-      Developer
-    cell: |
-      row_item.developer
-  - header: |
-      Description
-    cell: |
-      row_item.description
-  - header: |
-      Link
-    cell: |
-      row_item.url
-comment: |
-  This creates the table to display the app matches found.
----
-question: |
-  % if len(apps.matches) == 1:
-    ${ client.issue.category } Instant Attorney found in ${ state_name(client.issue.address.state) }
-  % else:
-    ${ client.issue.category } Instant Attorneys found in ${ state_name(client.issue.address.state) }
-  % endif
-subquestion: |
-  ${ apps_matches_table }
-field: app_select
-buttons:
-  - Keep searching
-comment: |
-  If Instant Attorney(s) are found, the user is shown the results
-  with links to the live instances of the Instant Attorney(s).
----
-code: |
-  if len(apps.matches) == 0:
-    app_select = True
-comment: |
-  This is needed in order to bypass the Instant Attorney results screen if there are no results.
----
-code: |
-  if client.issue.category != None and client.issue.address.state != None:
-    airtable = Airtable('appTjL6HbRtZSScDo', 'qualification', api_key=get_config('airtable'))
-    provider.search = airtable.search('Category', str(client.issue.category),
-      fields=['Name', 'Category', 'State', 'Sentence', 'URL'])
-    for record in provider.search:
-      if 'Name' in record['fields'] and 'State' in record['fields'] \
-        and 'Sentence' in record['fields']:
-        record_state = airtable.get(record['fields']['State'].pop())
-        if 'State Name' in record_state['fields']:
-          record_state = record_state['fields']['State Name']
-          if record_state == 'ALL' or record_state == state_name(client.issue.address.state):
-            provider_category = airtable.get(record['fields']['Category'].pop())
-            match_record = DAObject()
-            match_record.name = record['fields']['Name']
-            match_record.category = provider_category['fields']['Category']
-            match_record.state = record_state
-            match_record.qualify = False
-            match_record.sentence = record['fields']['Sentence']
-            match_record.url = "[![" + record['fields']['Name'] + "](http://hackathon.myinstantattorney.com/playgroundstatic/3/external-link-alt-solid.png)](" + record['fields']['URL'] + ")"
-            provider.matches.append(match_record)
-            provider.matches.there_are_any = True
+              match_record.name = record['fields']['resource_name']
+              match_record.category = client.issue.category
+              match_record.state = record_state['fields']['state_name']
+              match_record.qualify = False
+              match_record.sentence = record['fields']['qualify_sentence']
+              match_record.url = "[![" + record['fields']['resource_name'] + "](http://hackathon.myinstantattorney.com/playgroundstatic/3/external-link-alt-solid.png)](" + record['fields']['url'] + ")"
+              provider.matches.append(match_record)
+              provider.matches.there_are_any = True
     provider.matches.there_is_another = False
   if len(provider.matches) == 0:
     provider.matches.there_are_any = False
 comment: |
-  In this code block, the qualification table is queries
+  In this code block, the eligibility table is queried
 ---
 table: provider_matches_table
 rows: provider.matches
@@ -297,8 +220,13 @@ comment: |
 ---
 code: |
   if len(provider.matches) == 0:
+    track_progress
     provider_select = False
     provider_qualify = None
+---
+question: |
+  ${ progress }
+yesno: track_progress
 ---
 event: end_no_acknowledge
 question: |
@@ -323,9 +251,9 @@ buttons:
 comment: |
   This is shown if the triage to a Instant Attorney yields a provider result.
 terms: 
-  - good: Based on the eligibility criteria, your chances to have a public defender appointed for you are favorable with the information you provided.
-  - undetermined: Based on the eligibility criteria, your chances to have a public defender appointed for you will depend upon additional information.
-  - bad: Based on the eligibility criteria, your chances to have a public defender appointed for you are not favorable with the information you provided.
+  - good: Based on the eligibility criteria, your chances to get assistance are favorable with the information you provided.
+  - undetermined: Based on the eligibility criteria, your chances to have get assistance will depend upon additional information.
+  - bad: Based on the eligibility criteria, your chances to get assistance are not favorable with the information you provided.
 ---
 event: end_no_result_page
 question: |
@@ -344,25 +272,6 @@ buttons:
   - Exit: exit
 comment: |
   This is shown if the triage to a Instant Attorney was unsuccessful.
----
-question: |
-  What is you mystery number?
-fields:
-  - Mystery Number: mystery_number
-    datatype: integer
-comment: |
-  Set the mystery number from code
----
-question: |
-  Have you been arrested or charged with a crime?
-fields:
-  - I AM arrested or charged: is_arrested_or_charged
-    datatype: yesnoradio
-  - I MIGHT be arrested or charged in the future: might_be_arrested_or_charged
-    datatype: yesnoradio
-    show if:
-      variable: is_arrested_or_charged
-      is: False
 ---
 question: |
   What is your household size and annual household income?
