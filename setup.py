@@ -46,8 +46,8 @@ def find_package_data(where='.', package='', exclude=standard_exclude, exclude_d
 
 setup(name='docassemble.eligibility',
       version='0.0.1',
-      description=('The Eligibility Engine'),
-      long_description=u'# docassemble.eligibility\n\nThe Eligibility Engine',
+      description=('Eligibility Engine'),
+      long_description=u'# docassemble.eligibility\n\nEligibility Engine',
       long_description_content_type='text/markdown',
       author='Everett Pompeii',
       author_email='epompeii@protonmail.com',

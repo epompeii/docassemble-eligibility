@@ -1,4 +1,4 @@
-# The Eligibility Engine 
+# Eligibility Engine 
 
 Instant Attorney will be the first legal resource meta-search engine.
 It will help users find the best legal resource for their need,
