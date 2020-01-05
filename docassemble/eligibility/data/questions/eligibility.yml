@@ -1,31 +1,107 @@
+---
 metadata:
-  title: Instant Attorney
-  short title: Instant Attorney
-  comment: Instant Attorney will be the first legal resource meta-search engine.
-    This interview demonstrates the forthcoming ability to programmatically qualify
-    for legal resources listed on Instant Attorney.
+  title: Qualify for Legal Help
+  short title: Legal Help
+  tab title: Qualify for Legal Help - Instant Attorney
+  comment: Programmatic qualification for legal services on Instant Attorney
 ---
 modules:
   - docassemble.base.util
-  - docassemble.base.legal
-  - docassemble.eligibility.fed_pov_guide
-  - airtable
----
-objects:
-  - client: Individual
-  - client.issue: Event
-  - case: Case
-  - provider: DAObject
-  - provider.matches: DAList
+  - docassemble.base.functions
+  - requests
 ---
 mandatory: True
 code: |
-  if acknowledged_information_use == False:
-    end_no_acknowledge
-  if provider_select:
-    provider_result_page
+  url = get_config("exitpage")
+  
+  org_slug = url_args.get("org_slug")
+  service_slug = url_args.get("service_slug")
+  if org_slug and service_slug and service and service.get("name"):
+      set_parts(
+        title="Qualify for " + service.get("name"),
+        short=service.get("name"),
+        tab="Qualify for " + service.get("name") + " - Instant Attorney"
+      )
+  
+  eligibility_id = url_args.get("eligibility_id")
+  if not eligibility_id:
+    qualify = -1
+    
+  if qualify < 0 or qualify > 1:
+    qualification = "Your qualification can not be determined."
+  elif qualify == 0:
+    qualification = "You do not qualify."
+  elif qualify < .25:
+    qualification = "You probably do not qualify."
+  elif qualify < .5:
+    qualification = "You may qualify."
+  elif qualify < .75:
+    qualification = "You likely qualify."
+  elif qualify < 1:
+    qualification = "You very likely qualify!"
+  elif qualify == 1:
+    qualification = "You definitely qualify!"
+  
+  if apply and service and service.get("url"):
+    exit_url = service.get("url")
+  elif org_slug and service_slug:
+    exit_url = url + "/reviews/" + str(org_slug) + "/service/" + str(service_slug)
   else:
-    end_no_result_page
+    exit_url = url
+
+  command("exit", url=exit_url)
+comment: |
+  The Eligility Engine interview must be started with the URL argument:
+  `eligibility_id`
+  Otherwise, it will automatically return a qualification code of -1
+  indicating "Your qualification can not be determined."
+  
+  There are also two optional (but highly recomended) URL arguments:
+  `org_slug`
+  `service_slug`
+  These are the slugs for the Organization providing the service
+  and the Service itself on Instant Attorney.
+ 
+  For more details on URL arguments in docassemble, please see the documentation:
+  https://docassemble.org/docs/special.html#url_args
+---
+code: |
+  import requests
+  service_endpoint = url + "/api/v1/organizations/" + str(org_slug) + "/services/" + str(service_slug)
+  r = requests.get(service_endpoint)
+  if r.status_code == 200:
+    try:
+      r_json = r.json()
+      if r_json:
+        service = r_json.get("data")
+      else:
+        service = None
+    except:
+      service = None
+  else:
+    service = None
+comment: |
+  Get the Service information from Instant Attorney
+  using the `org_slug` and `service_slug` from the URL arguments.
+---
+code : |
+  import requests
+  eligibility_endpoint = url + "/api/v1/eligibility/" + str(eligibility_id)
+  r = requests.get(eligibility_endpoint)
+  if r.status_code == 200:
+    try:
+      r_json = r.json()
+      if r_json and r_json.get("data") and r_json.get("data").get("code"):
+        eligibility = r_json.get("data").get("code")
+      else:
+        qualify = -1
+    except:
+      qualify = -1
+  else:
+    qualify = -1
+comment: |
+  Get the Eligibility code from Instant Attorney
+  using the `eligibility_id` from the URL arguments.
 ---
 code: |
   import sys
@@ -39,15 +115,13 @@ code: |
   sys.stdout = codeOut
   sys.stderr = codeErr
 
-  exec (provider_sentence)
+  exec (eligibility)
 
   # restore stdout and stderr
   sys.stdout = sys.__stdout__
   sys.stderr = sys.__stderr__
 
-  provider_qualify = qualify()
-
-  provider_select = True
+  qualify = qualify()
 
   s = codeErr.getvalue()
 
@@ -57,225 +131,35 @@ code: |
 
   print ("output:\n%s" % s)
 comment: |
-  Qualification statement or bypass
----
-code: |
-  if client.issue.category != None and client.issue.address.state != None:
-    nsmi_table = Airtable(eligibility_base, 'nsmi', api_key=get_config('airtable'))
-    category_resources = nsmi_table.search('category_name', str(client.issue.category),
-      fields=['category_name', 'eligibility_resource'], max_records=1000).pop()
-    if 'eligibility_resource' in category_resources['fields']:
-      eligibility_table = Airtable(eligibility_base, 'eligibility', api_key=get_config('airtable'))
-      state_table = Airtable(eligibility_base, 'states', api_key=get_config('airtable'))
-      progress = category_resources['fields']['eligibility_resource']
-      for resource in category_resources['fields']['eligibility_resource']:
-        record = eligibility_table.get(resource)
-        if 'state' in record['fields']:
-          record_state = state_table.get(record['fields']['state'].pop())
-          if 'state_abbrev' in record_state['fields']:
-            if client.issue.address.state == record_state['fields']['state_abbrev'] \
-            and 'state_name' in record_state['fields'] \
-            and 'resource_name' in record['fields'] \
-            and 'qualify_sentence' in record['fields'] \
-            and 'url' in record['fields']:
-              match_record = DAObject()
-              match_record.name = record['fields']['resource_name']
-              match_record.category = client.issue.category
-              match_record.state = record_state['fields']['state_name']
-              match_record.qualify = False
-              match_record.sentence = record['fields']['qualify_sentence']
-              match_record.url = "[![" + record['fields']['resource_name'] + "](http://hackathon.myinstantattorney.com/playgroundstatic/3/external-link-alt-solid.png)](" + record['fields']['url'] + ")"
-              provider.matches.append(match_record)
-              provider.matches.there_are_any = True
-    provider.matches.there_is_another = False
-  if len(provider.matches) == 0:
-    provider.matches.there_are_any = False
-comment: |
-  In this code block, the eligibility table is queried
----
-table: provider_matches_table
-rows: provider.matches
-columns:
-  - header: |
-      Organization
-    cell: |
-      row_item.name
-  - header: |
-      Category
-    cell: |
-      row_item.category
-  - header: |
-      State
-    cell: |
-      row_item.state
-  - header: |
-      More Detail
-    cell: |
-      row_item.url
-comment: |
-  This creates the table to display the matches found.
+  Run the Eligibility code fetched from Instant Attorney.
+  
+  The default Eligibility code looks like this:
+  # Eligibility Engine
+  def qualify():
+    return 1
+  
+  There may be more than one fuction, but there must be
+  a `qualify()` function defined and this will acts as
+  the "main" for your Eligibility code.
 ---
 question: |
-  ${ client.issue.category } help found in ${ state_name(client.issue.address.state) }
+  ${ qualification }
 subquestion: |
-  ${ provider_matches_table }
-field: provider_sentence
+  Would you${ " still " if qualify < .5 else " " }like
+  to apply for
+  ${ (service.get("name")
+     if service and service.get("name")
+     else "this service")
+  }${ (" by " + service.get("organization").get("name")
+      if service and service.get("organization")
+      and service.get("organization").get("name")
+      else "")
+  }?
 buttons:
-  code: |
-    [{match.sentence: 'Qualify for a ' + match.name + ' in ' + match.state} for match in provider.matches]
-comment: |
-  If provider is found, the user is shown the results
-  with links to the pages.
+  - Apply Now:
+      code: |
+        apply = True
+  - Back to Listing:
+      code: |
+        apply = False
 ---
-code: |
-  if len(provider.matches) == 0:
-    provider_select = False
-    provider_qualify = None
----
-code: |
-  eligibility_base = 'appTjL6HbRtZSScDo'
----
-question: |
-  Welcome to the Instant Attorney!
-subquestion: |
-  Instant Attorney will be the first legal resource meta-search engine.
-  It will help users find the best legal resource for their need,
-  including allowing them to programmatically qualify for a legal resource
-  using the Eligibility Engine.
-
-  All of the data being used in this demo can be found [here].
-
-  Before continuing you must read and agree to the [terms of use] and [privacy policy].
-
-  [here]: http://data.myinstantattorney.com
-  [terms of use]: http://clerical.ai/legal-clerk-terms-of-use/
-  [privacy policy]: http://clerical.ai/legal-clerk-privacy-policy/
-help: |
-  This is an example help page.
-  Click "[Back to question]" to go to the previous screen and continue using Instant Attorney.
-terms: 
-  - green word: This is an example. Click it again to hide this definition.
-fields:
-  - Language: user_language
-    default: en
-    choices:
-      - English: en
-  - I agree: acknowledged_information_use
-    datatype: yesno
-    default: True
-continue button field: start_page
-comment: |
-  This is the "splash screen" for Instant Attorney.
----
-question: |
-  Issue Category
-subquestion: |
-  Please select from one of the following categories.
-  You can always come back to Instant Attorney for help
-  with additional issues.
-field: client.issue.category
-combobox:
-  - "Accidents, Injuries, and Problems with Others"
-  - Crime and Prisons
-  - Family
-  - Health
-  - Housing
-  - Work
-  - Traffic
-  - Benefits
-  - Estates and Wills
-  - Immigration
-  - "Money, Debt, and Consumer Issues"
-  - Civil and Human Rights
-  - Court and Lawyers
-  - Disaster Relief
-  - Education
-  - Environmental Justice
-  - Government Services
-  - Native American Issues
-  - Small Business
-  - Veterans and Military
-comment: |
-  This allows the user to choose the category for their issue.
-  These categories are from the draft National Subject Matter Index (NSMI) v2.0.
-  As more categories and sub-categories are added, more triage can take place.
----
-question: |
-  Issue Location
-subquestion: |
- Please select the state where the issue occured.
- Also, indicate whether this is different from
- where you live now.
-fields:
-  - Issue is in: client.issue.address.state
-    input type: combobox
-    code: |
-      states_list()
-  - This is also where I live now: issue_residence_same
-    datatype: yesno
-    default: True
-  - I live in: client.address.state
-    input type: combobox
-    code: |
-      states_list()
-    show if:
-      variable: issue_residence_same
-      is: False
-comment: |
-  This allows a user to select their state.
-  Eventually, the goal is to have this be international and not just for the US.
-  Additionally, more narrow geolation will be desired such as the particular county.
-  The user's state of residence, if different than the issue is currently unused.
----
-event: end_no_acknowledge
-question: |
-  We're sorry we could not serve you online
-subquestion: |
-  Only users who accept the [terms of use and data use policy](http://clerical.ai/2018/11/28/terms-of-use-and-privacy-policy-for-guided-interviews/) may use this application.
-buttons:
-  - Restart: restart
-  - Exit: exit
-comment: |
-  This is shown if the user does not accept the TOS.
----
-event: provider_result_page
-question: |
-  The chances that you may qualify for
-  ${ client.issue.category } help in
-  ${ state_name(client.issue.address.state) }
-  is {${ provider_qualify.lower() }}
-buttons:
-  - Restart: restart
-  - Exit: exit
-comment: |
-  This is shown if the triage to a Instant Attorney yields a provider result.
-terms: 
-  - good: Based on the eligibility criteria, your chances to get assistance are favorable with the information you provided.
-  - undetermined: Based on the eligibility criteria, your chances to have get assistance will depend upon additional information.
-  - bad: Based on the eligibility criteria, your chances to get assistance are not favorable with the information you provided.
----
-event: end_no_result_page
-question: |
-  Aw, shucks...
-subquestion: |
-  We were unable to find either a suitable Instant Attorney.
-
-  If you think you need financial assitance
-  for legal services then please
-  search with the [Legal Services Corptoration]
-  for a legal provider provider.
-
-  [Legal Services Corptoration]: https://www.lsc.gov/what-legal-provider/find-legal-provider
-buttons:
-  - Restart: restart
-  - Exit: exit
-comment: |
-  This is shown if the triage to a Instant Attorney was unsuccessful.
----
-question: |
-  What is your household size and annual household income?
-fields:
-  - Household size: household_size
-    datatype: integer
-  - Annual household income: household_income
-    datatype: currency

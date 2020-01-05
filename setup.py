@@ -45,17 +45,17 @@ def find_package_data(where='.', package='', exclude=standard_exclude, exclude_d
     return out
 
 setup(name='docassemble.eligibility',
-      version='0.0.1',
+      version='0.0.2',
       description=('Eligibility Engine'),
       long_description=u'# docassemble.eligibility\n\nEligibility Engine',
       long_description_content_type='text/markdown',
       author='Everett Pompeii',
       author_email='epompeii@protonmail.com',
       license='GNU AGPLv3',
-      url='https://hackathon.myinstantattorney.com',
+      url='https://eligibility.myinstantattorney.com',
       packages=find_packages(),
       namespace_packages=['docassemble'],
-      install_requires=['airtable-python-wrapper'],
+      install_requires=['requests'],
       zip_safe=False,
       package_data=find_package_data(where='docassemble/eligibility/', package='docassemble.eligibility'),
      )
