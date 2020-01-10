@@ -8,6 +8,7 @@ metadata:
 modules:
   - docassemble.base.util
   - docassemble.base.functions
+  - .eligibility
   - requests
 ---
 mandatory: True
@@ -26,8 +27,9 @@ code: |
   eligibility_id = url_args.get("eligibility_id")
   if not eligibility_id:
     qualify = -1
+    info = ""
     
-  if qualify < 0 or qualify > 1:
+  if not isinstance(qualify, int) or qualify < 0 or qualify > 1:
     qualification = "Your qualification can not be determined."
   elif qualify == 0:
     qualification = "You do not qualify."
@@ -36,20 +38,22 @@ code: |
   elif qualify < .5:
     qualification = "You may qualify."
   elif qualify < .75:
-    qualification = "You likely qualify."
+    qualification = "You probably qualify."
   elif qualify < 1:
-    qualification = "You very likely qualify!"
+    qualification = "You likely qualify!"
   elif qualify == 1:
     qualification = "You definitely qualify!"
   
   if apply and service and service.get("url"):
     exit_url = service.get("url")
   elif org_slug and service_slug:
-    exit_url = url + "/reviews/" + str(org_slug) + "/service/" + str(service_slug)
+    exit_url = (
+      url + "/reviews/" + str(org_slug) + "/service/" + str(service_slug)
+    )
   else:
     exit_url = url
 
-  command("exit", url=exit_url)
+  command("exit_logout", url=exit_url)
 comment: |
   The Eligility Engine interview must be started with the URL argument:
   `eligibility_id`
@@ -67,7 +71,10 @@ comment: |
 ---
 code: |
   import requests
-  service_endpoint = url + "/api/v1/organizations/" + str(org_slug) + "/services/" + str(service_slug)
+  service_endpoint = (
+    url + "/api/v1/organizations/"
+    + str(org_slug) + "/services/" + str(service_slug)
+  )
   r = requests.get(service_endpoint)
   if r.status_code == 200:
     try:
@@ -92,7 +99,7 @@ code : |
     try:
       r_json = r.json()
       if r_json and r_json.get("data") and r_json.get("data").get("code"):
-        eligibility = r_json.get("data").get("code")
+        eligibility_code = r_json.get("data").get("code")
       else:
         qualify = -1
     except:
@@ -108,14 +115,14 @@ code: |
   import io
 
   # create file-like string to capture output
-  codeOut = io.StringIO()
-  codeErr = io.StringIO()
+  qualifyOut = io.StringIO()
+  qualifyError = io.StringIO()
 
   # capture output and errors
-  sys.stdout = codeOut
-  sys.stderr = codeErr
+  sys.stdout = qualifyOut
+  sys.stderr = qualifyError
 
-  exec (eligibility)
+  exec (eligibility_code)
 
   # restore stdout and stderr
   sys.stdout = sys.__stdout__
@@ -123,13 +130,9 @@ code: |
 
   qualify = qualify()
 
-  s = codeErr.getvalue()
-
-  print ("error:\n%s\n" % s)
-
-  s = codeOut.getvalue()
-
-  print ("output:\n%s" % s)
+  info = qualifyOut.getvalue()
+  if qualifyError.getvalue():
+    log("error:\n%s\n" % qualifyError.getvalue(), "danger")
 comment: |
   Run the Eligibility code fetched from Instant Attorney.
   
@@ -141,10 +144,19 @@ comment: |
   There may be more than one fuction, but there must be
   a `qualify()` function defined and this will acts as
   the "main" for your Eligibility code.
+
+  The expected return value is an integer.
+  If your code is able to make a determination of eligibility,
+  it should return a value between 0 and 1 both inclusive using fuzzy logic:
+  https://en.wikipedia.org/wiki/Fuzzy_logic
+
+  For whatever reason the function can not make a determination,
+  it should return -1. All other retrun values will be treated as a -1.
 ---
 question: |
   ${ qualification }
 subquestion: |
+  ${ info }
   Would you${ " still " if qualify < .5 else " " }like
   to apply for
   ${ (service.get("name")
@@ -162,4 +174,13 @@ buttons:
   - Back to Listing:
       code: |
         apply = False
+comment: |
+  This is functionally the exit block for this interview.
+  If the user selects "Apply Now", then the interview will
+  attempt to redirect the user to the URL for the Resource
+  from Instant Attorney.
+
+  Or if the user chooses "Back to Listing", the interview will
+  attempt to redirect the user to the Resource listing
+  on Instant Attorney.
 ---

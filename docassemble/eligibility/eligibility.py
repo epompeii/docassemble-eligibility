@@ -1,9 +1,9 @@
 from docassemble.base.functions import get_config
 import requests
 
-def get_variable(variable):
-  endpoint= get_config("exitpage") + "/api/v1/variables/"
-  r = requests.get(endpoint, params={"variable": variable})
+def eligibility(name, **kwargs):
+  endpoint= get_config("exitpage") + "/api/v1/eligibility"
+  r = requests.get(endpoint, params={"name": name, "args": kwargs})
   if r.status_code == 200:
     try:
       r_json = r.json()
