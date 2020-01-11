@@ -17,6 +17,7 @@ code: |
   
   org_slug = url_args.get("org_slug")
   service_slug = url_args.get("service_slug")
+  
   if org_slug and service_slug and service and service.get("name"):
       set_parts(
         title="Qualify for " + service.get("name"),
@@ -58,8 +59,7 @@ code: |
 comment: |
   The Eligility Engine interview must be started with the URL argument:
   `eligibility_id`
-  Otherwise, it will automatically return a qualification code of -1
-  indicating "Your qualification can not be determined."
+  Otherwise, it will automatically return a qualification code of -1.
   
   There are also two optional (but highly recomended) URL arguments:
   `org_slug`
@@ -95,6 +95,7 @@ comment: |
 code : |
   import requests
   eligibility_endpoint = url + "/api/v1/eligibility/" + str(eligibility_id)
+  default_code = "def qualify():\n  return -1"
   r = requests.get(eligibility_endpoint)
   if r.status_code == 200:
     try:
@@ -102,38 +103,18 @@ code : |
       if r_json and r_json.get("data") and r_json.get("data").get("code"):
         eligibility_code = r_json.get("data").get("code")
       else:
-        qualify = -1
+        eligibility_code = default_code
     except:
-      qualify = -1
+      eligibility_code = default_code
   else:
-    qualify = -1
+    eligibility_code = default_code
 comment: |
   Get the Eligibility code from Instant Attorney
   using the `eligibility_id` from the URL arguments.
 ---
 code: |
-  import sys
-  import io
-
-  # create file-like string to capture output
-  qualifyOut = io.StringIO()
-  qualifyError = io.StringIO()
-
-  # capture output and errors
-  sys.stdout = qualifyOut
-  sys.stderr = qualifyError
-
   exec (eligibility_code)
-
-  # restore stdout and stderr
-  sys.stdout = sys.__stdout__
-  sys.stderr = sys.__stderr__
-
   qualify = qualify()
-
-  info = qualifyOut.getvalue()
-  if qualifyError.getvalue():
-    log("error:\n%s\n" % qualifyError.getvalue(), "danger")
 comment: |
   Run the Eligibility code fetched from Instant Attorney.
   
@@ -157,7 +138,6 @@ comment: |
 question: |
   ${ qualification }
 subquestion: |
-  ${ info }
   Would you${ " still " if qualify < .5 else " " }like
   to apply for
   ${ (service.get("name")
