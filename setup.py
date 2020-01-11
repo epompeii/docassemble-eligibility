@@ -45,7 +45,7 @@ def find_package_data(where='.', package='', exclude=standard_exclude, exclude_d
     return out
 
 setup(name='docassemble.eligibility',
-      version='0.0.3',
+      version='0.0.4',
       description=('Eligibility Engine'),
       long_description=u'# docassemble.eligibility\n\nEligibility Engine',
       long_description_content_type='text/markdown',

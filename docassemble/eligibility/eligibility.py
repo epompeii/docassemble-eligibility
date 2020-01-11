@@ -41,12 +41,12 @@ def get_eligibility_code(eligibility_id):
 # using the `name` of the function and its required `args`.
 def eligibility(name, **kwargs):
   endpoint= get_config("exitpage") + "/api/v1/eligibility"
-  r = requests.get(endpoint, params={"name": name, "args": kwargs})
+  r = requests.get(endpoint, params={"name": name, "args": json.dumps(kwargs)})
   if r.status_code == 200:
     try:
       r_json = r.json()
-      if r_json:
-        return r_json.get("data")
+      if r_json and r_json.get("data") and r_json.get("data").get("value"):
+        return r_json.get("data").get("value")
     except:
       return None
 
