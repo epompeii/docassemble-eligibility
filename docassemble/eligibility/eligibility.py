@@ -1,5 +1,6 @@
 from docassemble.base.functions import get_config
 import requests
+import json
 
 # Get the Service information from Instant Attorney
 # using the `org_slug` and `service_slug`.
