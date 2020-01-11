@@ -18,17 +18,23 @@ code: |
   org_slug = url_args.get("org_slug")
   service_slug = url_args.get("service_slug")
   
-  if org_slug and service_slug and service and service.get("name"):
-      set_parts(
-        title="Qualify for " + service.get("name"),
-        short=service.get("name"),
-        tab="Qualify for " + service.get("name") + " - Instant Attorney"
-      )
+  if org_slug and service_slug:
+    service = get_service(org_slug, service_slug)
+  else:
+    service = None
+    
+  if service and service.get("name"):
+    set_parts(
+      title="Qualify for " + service.get("name"),
+      short=service.get("name"),
+      tab="Qualify for " + service.get("name") + " - Instant Attorney"
+    )
   
   eligibility_id = url_args.get("eligibility_id")
   if not eligibility_id:
     qualify = -1
-    info = ""
+  else:
+    eligibility_code = get_eligibility_code(eligibility_id)
     
   if ((not isinstance(qualify, int) and not isinstance(qualify, float))
     or qualify < 0 or qualify > 1):
@@ -69,48 +75,6 @@ comment: |
  
   For more details on URL arguments in docassemble, please see the documentation:
   https://docassemble.org/docs/special.html#url_args
----
-code: |
-  import requests
-  service_endpoint = (
-    url + "/api/v1/organizations/"
-    + str(org_slug) + "/services/" + str(service_slug)
-  )
-  r = requests.get(service_endpoint)
-  if r.status_code == 200:
-    try:
-      r_json = r.json()
-      if r_json:
-        service = r_json.get("data")
-      else:
-        service = None
-    except:
-      service = None
-  else:
-    service = None
-comment: |
-  Get the Service information from Instant Attorney
-  using the `org_slug` and `service_slug` from the URL arguments.
----
-code : |
-  import requests
-  eligibility_endpoint = url + "/api/v1/eligibility/" + str(eligibility_id)
-  default_code = "def qualify():\n  return -1"
-  r = requests.get(eligibility_endpoint)
-  if r.status_code == 200:
-    try:
-      r_json = r.json()
-      if r_json and r_json.get("data") and r_json.get("data").get("code"):
-        eligibility_code = r_json.get("data").get("code")
-      else:
-        eligibility_code = default_code
-    except:
-      eligibility_code = default_code
-  else:
-    eligibility_code = default_code
-comment: |
-  Get the Eligibility code from Instant Attorney
-  using the `eligibility_id` from the URL arguments.
 ---
 code: |
   exec (eligibility_code)
