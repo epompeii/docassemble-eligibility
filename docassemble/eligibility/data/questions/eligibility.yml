@@ -8,36 +8,42 @@ metadata:
 modules:
   - docassemble.base.util
   - docassemble.base.functions
+  - docassemble.income.income
   - .eligibility
 ---
 include:
+  # household_direct: Asks directly for household size
+  # income_direct: Asks directly for annual household income
   - direct.yml
+  # household_questions: Gathers detailed household information
+  # financial_statement_questions: Gathters detailed financial information
+  - docassemble.income:financial_statement.yml
 ---
 mandatory: True
 code: |
   url = get_config("exitpage")
-
+  
   org_slug = url_args.get("org_slug")
   service_slug = url_args.get("service_slug")
-
+  
   if org_slug and service_slug:
     service = get_service(org_slug, service_slug)
   else:
     service = None
-
+    
   if service and service.get("name"):
     set_parts(
       title="Qualify for " + service.get("name"),
       short=service.get("name"),
       tab="Qualify for " + service.get("name") + " - Instant Attorney"
     )
-
+  
   eligibility_id = url_args.get("eligibility_id")
   if not eligibility_id:
     qualify = -1
   else:
     eligibility_code = get_eligibility_code(eligibility_id)
-
+    
   if ((not isinstance(qualify, int) and not isinstance(qualify, float))
     or qualify < 0 or qualify > 1):
     qualification = "Your qualification can not be determined."
@@ -53,7 +59,7 @@ code: |
     qualification = "You likely qualify!"
   elif qualify == 1:
     qualification = "You definitely qualify!"
-
+  
   if apply and service and service.get("url"):
     exit_url = service.get("url")
   elif org_slug and service_slug:
