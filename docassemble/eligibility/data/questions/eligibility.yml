@@ -29,7 +29,8 @@ code: |
     qualify = -1
     info = ""
     
-  if not isinstance(qualify, int) or qualify < 0 or qualify > 1:
+  if ((not isinstance(qualify, int) and not isinstance(qualify, float))
+    or qualify < 0 or qualify > 1):
     qualification = "Your qualification can not be determined."
   elif qualify == 0:
     qualification = "You do not qualify."
