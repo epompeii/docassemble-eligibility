@@ -2,12 +2,12 @@
 question: |
   What is your household size?
 fields:
-  - Household size: household_direct
+  - Household size: household_size_direct
     datatype: integer
 ---
 question: |
   What is your annual household income?
 fields:
-  - Annual household income: income_direct
+  - Annual household income: household_income_direct
     datatype: currency
 ---
