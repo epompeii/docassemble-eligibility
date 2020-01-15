@@ -2,12 +2,18 @@
 question: |
   What is your household size?
 fields:
-  - Household size: household_size_direct
+  - Household size: household_size
     datatype: integer
+---
+question: |
+  What is your monthly household income?
+fields:
+  - Monthly household income: monthly_household_income
+    datatype: currency
 ---
 question: |
   What is your annual household income?
 fields:
-  - Annual household income: household_income_direct
+  - Annual household income: annual_household_income
     datatype: currency
 ---
