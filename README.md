@@ -1,5 +1,4 @@
-# Eligibility Engine 
+# Eligibility Engine
 
-Programmatically qualify for legal resources on [Instant Attorney](https://myinstantattorney.com).
-If you would like to add your legal resources or contribute,
-sign up to become an [Instant Attorney Partner](https://myinstantattorney.com/partner).
+Programmatically qualify for legal resources using [Docassemble](https://docassemble.org).
+The Eligibility Engine started off as a part of [Instant Attorney](https://myinstantattorney.com). The next generation of the Eligibility Engine is under active development.
